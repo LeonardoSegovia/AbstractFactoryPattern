@@ -53,30 +53,53 @@ namespace AbstractFactoryPattern
 
     public class HotDrinkMachine
     {
-        public enum AvailableDrink
-        {
-            Coffee, Tea
-        }
 
-        private readonly Dictionary<AvailableDrink, IHotDrinkFactory> _drinkFactories = new Dictionary<AvailableDrink, IHotDrinkFactory>();
+        private List<Tuple<string, IHotDrinkFactory>> _factories
+            = new List<Tuple<string, IHotDrinkFactory>>();
 
         public HotDrinkMachine()
         {
-            foreach (var drink in Enum.GetValues(typeof(AvailableDrink)))
+            foreach (var t in typeof(HotDrinkMachine).Assembly.GetTypes())
             {
-                var factory =
-                    (IHotDrinkFactory)Activator.CreateInstance(
-                                        Type.GetType($"AbstractFactoryPattern.{Enum.GetName(typeof(AvailableDrink), drink)}Factory")
-                                         ?? throw new InvalidOperationException());
-
-                _drinkFactories.Add((AvailableDrink) drink, factory);
+                if (typeof(IHotDrinkFactory).IsAssignableFrom(t) && !t.IsInterface)
+                {
+                    _factories.Add(Tuple.Create(t.Name.Replace("Factory", String.Empty),
+                        (IHotDrinkFactory)Activator.CreateInstance(t)));
+                }
             }
         }
 
-        public IHotDrink MakeDrink(AvailableDrink drink, int amount)
+        public IHotDrink MakeDrink()
         {
-            return _drinkFactories[drink].Prepare(amount);
+            Console.WriteLine("Available drinks:");
+            for (var i = 0; i < _factories.Count; i++)
+            {
+                var tuple = _factories[i];
+
+                Console.WriteLine($"{i}: {tuple.Item1}");
+            }
+
+            while (true)
+            {
+                string s;
+                if ((s = Console.ReadLine()) != null
+                    && int.TryParse(s, out int index)
+                    && index >= 0
+                    && index < _factories.Count)
+
+                {
+                    Console.WriteLine("Specify amount: ");
+                    s = Console.ReadLine();
+                    if (s != null && int.TryParse(s, out int amount) && amount > 0)
+                        return _factories[index].Item2.Prepare(amount);
+
+                }
+
+                Console.WriteLine("Incorrect input, try again!");
+
+            }
         }
+
     }
 
 
@@ -86,11 +109,8 @@ namespace AbstractFactoryPattern
         static void Main(string[] args)
         {
             var hotDrinkMachine = new HotDrinkMachine();
-            var drink = hotDrinkMachine.MakeDrink(HotDrinkMachine.AvailableDrink.Tea,100);
-            drink.Consume();
 
-            var otherDrink = hotDrinkMachine.MakeDrink(HotDrinkMachine.AvailableDrink.Coffee, 80);
-            otherDrink.Consume();
+            hotDrinkMachine.MakeDrink();
 
             Console.ReadKey();
         }
